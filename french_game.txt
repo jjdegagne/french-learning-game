@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>French 101 Game</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+            overflow-x: hidden; /* Prevent horizontal scroll on some animations */
+        }
+        .game-container {
+            background-color: #ffffff;
+            border-radius: 1.5rem; /* More rounded corners */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 2.5rem;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .question-and-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        .question-box {
+            background-color: #e0f2f7; /* Light blue */
+            border-radius: 1rem;
+            padding: 1.5rem;
+            font-size: 2.5rem; /* Larger font for the French word */
+            font-weight: bold;
+            color: #2c5282; /* Darker blue text */
+            width: 100%; /* Ensure it takes full width within its container */
+            animation: fadeIn 0.5s ease-out; /* Fade in animation for question */
+        }
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr; /* Single column on small screens */
+            gap: 1rem;
+        }
+        @media (min-width: 640px) { /* sm breakpoint */
+            .options-grid {
+                grid-template-columns: 1fr 1fr; /* Two columns on larger screens */
+            }
+        }
+        .option-button {
+            background-color: #a7f3d0; /* Light green */
+            color: #065f46; /* Dark green text */
+            padding: 1rem 1.5rem;
+            border-radius: 0.75rem;
+            font-size: 1.125rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            border: 2px solid transparent;
+        }
+        .option-button:hover {
+            background-color: #6ee7b7; /* Darker green on hover */
+            transform: translateY(-2px);
+        }
+        .option-button:active {
+            transform: translateY(0);
+        }
+        .option-button.correct {
+            background-color: #34d399; /* Green for correct answer */
+            border-color: #065f46;
+            color: #ffffff;
+            animation: popScale 0.3s ease-out; /* Pop animation */
+        }
+        .option-button.incorrect {
+            background-color: #fca5a5; /* Red for incorrect answer */
+            border-color: #b91c1c;
+            color: #ffffff;
+            animation: shake 0.3s ease-out; /* Shake animation */
+        }
+        .message-box {
+            padding: 1rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            color: #ffffff;
+            opacity: 0; /* Hidden by default */
+            transform: translateY(-20px); /* Start slightly above */
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+            width: 100%;
+        }
+        .message-box.show {
+            opacity: 1;
+            transform: translateY(0); /* Slide into place */
+        }
+        .message-box.correct-msg {
+            background-color: #10b981; /* Green */
+        }
+        .message-box.incorrect-msg {
+            background-color: #ef4444; /* Red */
+        }
+        .explanation-msg {
+            background-color: #bfdbfe; /* Light blue for explanation */
+            color: #1e40af; /* Dark blue text */
+            text-align: left; /* Aligned left for better readability of longer text */
+            font-size: 0.95rem; /* Slightly smaller font for explanations */
+            line-height: 1.4; /* Better line spacing */
+        }
+        .score-box {
+            background-color: #bfdbfe; /* Light blue */
+            color: #1e40af; /* Dark blue text */
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.75rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .restart-button, .gemini-button {
+            background-color: #3b82f6; /* Blue */
+            color: #ffffff;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-size: 1.125rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .restart-button:hover, .gemini-button:hover {
+            background-color: #2563eb; /* Darker blue on hover */
+        }
+        .gemini-button:disabled {
+            background-color: #93c5fd; /* Lighter blue when disabled */
+            cursor: not-allowed;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Keyframe animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes popScale {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1 class="text-3xl font-bold text-gray-800">French 101 Vocabulary</h1>
+
+        <div class="question-and-actions">
+            <div class="question-box" id="frenchWord">
+                Chargement...
+            </div>
+            <div class="flex flex-wrap justify-center gap-4">
+                <button id="pronounceButton" class="gemini-button">
+                    ✨ Prononcer
+                </button>
+                <button id="explainButton" class="gemini-button">
+                    ✨ Expliquer
+                </button>
+                <button id="relatedWordButton" class="gemini-button">
+                    ✨ Mot apparenté
+                </button>
+            </div>
+            <div id="explanationBox" class="message-box explanation-msg" style="display: none;">
+                <!-- Explanation or related word will appear here -->
+            </div>
+        </div>
+
+        <div class="options-grid" id="optionsContainer">
+            <!-- Options will be dynamically loaded here -->
+        </div>
+
+        <div class="message-box" id="messageBox">
+            <!-- Feedback messages will appear here -->
+        </div>
+
+        <div class="score-box">
+            <span>Score: <span id="currentScore">0</span> / <span id="totalQuestions">0</span></span>
+            <span>Question: <span id="currentQuestionNum">0</span> / <span id="maxQuestions">0</span></span>
+        </div>
+
+        <button class="restart-button" id="restartButton" style="display: none;">Recommencer</button>
+    </div>
+
+    <script>
+        const apiKey = ""; // Canvas will automatically provide the API key at runtime
+
+        // Array of French words and their English translations
+        const vocabulary = [
+            { french: "Bonjour", english: "Hello" },
+            { french: "Au revoir", english: "Goodbye" },
+            { french: "Merci", english: "Thank you" },
+            { french: "S'il vous plaît", english: "Please" },
+            { french: "Oui", english: "Yes" },
+            { french: "Non", english: "No" },
+            { french: "Un", english: "One" },
+            { french: "Deux", english: "Two" },
+            { french: "Trois", english: "Three" },
+            { french: "Quatre", english: "Four" },
+            { french: "Cinq", english: "Five" },
+            { french: "Six", english: "Six" },
+            { french: "Sept", english: "Seven" },
+            { french: "Huit", english: "Eight" },
+            { french: "Neuf", english: "Nine" },
+            { french: "Dix", english: "Ten" },
+            { french: "Femme", english: "Woman" },
+            { french: "Homme", english: "Man" },
+            { french: "Fille", english: "Girl" },
+            { french: "Garçon", english: "Boy" },
+            { french: "Eau", english: "Water" },
+            { french: "Pain", english: "Bread" },
+            { french: "Maison", english: "House" },
+            { french: "Voiture", english: "Car" },
+            { french: "Livre", english: "Book" },
+            { french: "École", english: "School" },
+            { french: "Manger", english: "To eat" },
+            { french: "Boire", english: "To drink" },
+            { french: "Parler", english: "To speak" },
+            { french: "Comprendre", english: "To understand" },
+            { french: "Aimer", english: "To like/love" },
+            { french: "Aller", english: "To go" },
+            { french: "Venir", english: "To come" },
+            { french: "Voir", english: "To see" },
+            { french: "Entendre", english: "To hear" },
+            { french: "Apprendre", english: "To learn" },
+            { french: "Vivre", english: "To live" },
+            { french: "Travailler", english: "To work" },
+            { french: "Jour", english: "Day" },
+            { french: "Nuit", english: "Night" },
+            { french: "Matin", english: "Morning" },
+            { french: "Soir", english: "Evening" },
+            { french: "Couleur", english: "Color" },
+            { french: "Rouge", english: "Red" },
+            { french: "Bleu", english: "Blue" },
+            { french: "Vert", english: "Green" },
+            { french: "Jaune", english: "Yellow" },
+            { french: "Grand", english: "Big/Tall" },
+            { french: "Petit", english: "Small/Short" },
+            { french: "Beau", english: "Beautiful (masc.)" },
+            { french: "Belle", english: "Beautiful (fem.)" },
+            { french: "Bon", english: "Good (masc.)" },
+            { french: "Bonne", english: "Good (fem.)" }
+        ];
+
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let shuffledVocabulary = [];
+        const MAX_QUESTIONS_PER_GAME = 10; // Limit the number of questions per game
+
+        // DOM elements
+        const frenchWordDisplay = document.getElementById('frenchWord');
+        const optionsContainer = document.getElementById('optionsContainer');
+        const messageBox = document.getElementById('messageBox');
+        const explanationBox = document.getElementById('explanationBox');
+        const currentScoreSpan = document.getElementById('currentScore');
+        const totalQuestionsSpan = document.getElementById('totalQuestions');
+        const currentQuestionNumSpan = document.getElementById('currentQuestionNum');
+        const maxQuestionsSpan = document.getElementById('maxQuestions');
+        const restartButton = document.getElementById('restartButton');
+        const pronounceButton = document.getElementById('pronounceButton');
+        const explainButton = document.getElementById('explainButton');
+        const relatedWordButton = document.getElementById('relatedWordButton'); // New button reference
+
+        let audioContext;
+        let audioSource;
+
+        // Utility function to convert base64 to ArrayBuffer
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        // Utility function to convert PCM data to WAV Blob
+        function pcmToWav(pcmData, sampleRate) {
+            const numChannels = 1; // Mono
+            const bitsPerSample = 16;
+            const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+            const blockAlign = (numChannels * bitsPerSample) / 8;
+            const dataSize = pcmData.byteLength;
+
+            const buffer = new ArrayBuffer(44 + dataSize);
+            const view = new DataView(buffer);
+
+            let offset = 0;
+
+            // RIFF chunk descriptor
+            writeString(view, offset, 'RIFF'); offset += 4;
+            view.setUint32(offset, 36 + dataSize, true); offset += 4;
+            writeString(view, offset, 'WAVE'); offset += 4;
+
+            // FMT sub-chunk
+            writeString(view, offset, 'fmt '); offset += 4;
+            view.setUint32(offset, 16, true); offset += 4; // Subchunk1Size for PCM
+            view.setUint16(offset, 1, true); offset += 2; // AudioFormat (1 for PCM)
+            view.setUint16(offset, numChannels, true); offset += 2;
+            view.setUint32(offset, sampleRate, true); offset += 4;
+            view.setUint32(offset, byteRate, true); offset += 4;
+            view.setUint16(offset, blockAlign, true); offset += 2;
+            view.setUint16(offset, bitsPerSample, true); offset += 2;
+
+            // DATA sub-chunk
+            writeString(view, offset, 'data'); offset += 4;
+            view.setUint32(offset, dataSize, true); offset += 4;
+
+            // Write PCM data
+            const pcmView = new Int16Array(pcmData);
+            for (let i = 0; i < pcmView.length; i++) {
+                view.setInt16(offset, pcmView[i], true);
+                offset += 2;
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, s) {
+            for (let i = 0; i < s.length; i++) {
+                view.setUint8(offset + i, s.charCodeAt(i));
+            }
+        }
+
+        /**
+         * Retries a fetch request with exponential backoff.
+         * @param {string} url The URL to fetch.
+         * @param {Object} options The fetch options.
+         * @param {number} retries The number of retries.
+         * @param {number} delay The initial delay in ms.
+         * @returns {Promise<Response>} The fetch response.
+         */
+        async function retryFetch(url, options, retries = 3, delay = 1000) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        // If response is not OK, it's an HTTP error, might be retriable
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response;
+                } catch (error) {
+                    console.warn(`Attempt ${i + 1} failed: ${error.message}. Retrying in ${delay / 1000}s...`);
+                    if (i < retries - 1) {
+                        await new Promise(res => setTimeout(res, delay));
+                        delay *= 2; // Exponential backoff
+                    } else {
+                        throw error; // Re-throw if all retries fail
+                    }
+                }
+            }
+        }
+
+        /**
+         * Shuffles an array in place (Fisher-Yates algorithm).
+         * @param {Array} array The array to shuffle.
+         * @returns {Array} The shuffled array.
+         */
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]]; // Swap elements
+            }
+            return array;
+        }
+
+        /**
+         * Selects random incorrect options for the quiz.
+         * @param {string} correctAnswer The correct answer to exclude.
+         * @param {Array} allOptions All possible options to choose from.
+         * @param {number} count The number of incorrect options needed.
+         * @returns {Array} An array of incorrect options.
+         */
+        function getIncorrectOptions(correctAnswer, allOptions, count) {
+            const incorrect = allOptions.filter(opt => opt !== correctAnswer);
+            shuffleArray(incorrect);
+            return incorrect.slice(0, count);
+        }
+
+        /**
+         * Displays the current question and its options.
+         */
+        function displayQuestion() {
+            if (currentQuestionIndex >= MAX_QUESTIONS_PER_GAME) {
+                endGame();
+                return;
+            }
+
+            // Clear previous message and explanation/related word
+            messageBox.classList.remove('show', 'correct-msg', 'incorrect-msg');
+            explanationBox.style.display = 'none';
+            explanationBox.innerHTML = '';
+            explanationBox.classList.remove('incorrect-msg', 'explanation-msg', 'show');
+
+
+            // Re-enable buttons
+            pronounceButton.disabled = false;
+            explainButton.disabled = false;
+            relatedWordButton.disabled = false; // Enable new button
+            pronounceButton.innerHTML = '✨ Prononcer';
+            explainButton.innerHTML = '✨ Expliquer';
+            relatedWordButton.innerHTML = '✨ Mot apparenté'; // Set text for new button
+
+            const currentItem = shuffledVocabulary[currentQuestionIndex];
+            frenchWordDisplay.textContent = currentItem.french;
+            // Re-apply fade-in animation to question box for new questions
+            frenchWordDisplay.style.animation = 'none'; // Reset animation
+            void frenchWordDisplay.offsetWidth; // Trigger reflow
+            frenchWordDisplay.style.animation = 'fadeIn 0.5s ease-out';
+
+
+            // Prepare options
+            const allEnglishWords = vocabulary.map(item => item.english);
+            const incorrectOptions = getIncorrectOptions(currentItem.english, allEnglishWords, 3); // Get 3 incorrect
+            let options = [currentItem.english, ...incorrectOptions];
+            shuffleArray(options); // Shuffle all options (correct and incorrect)
+
+            optionsContainer.innerHTML = ''; // Clear previous buttons
+
+            options.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.classList.add('option-button', 'rounded-xl', 'transition', 'duration-200');
+                button.dataset.answer = option; // Store the answer on the button
+                button.addEventListener('click', handleAnswerClick);
+                optionsContainer.appendChild(button);
+            });
+
+            // Update score display
+            currentScoreSpan.textContent = score;
+            currentQuestionNumSpan.textContent = currentQuestionIndex + 1;
+            maxQuestionsSpan.textContent = MAX_QUESTIONS_PER_GAME;
+            totalQuestionsSpan.textContent = MAX_QUESTIONS_PER_GAME;
+        }
+
+        /**
+         * Handles the click event for an answer option.
+         * @param {Event} event The click event.
+         */
+        function handleAnswerClick(event) {
+            const selectedAnswer = event.target.dataset.answer;
+            const correctAnswer = shuffledVocabulary[currentQuestionIndex].english;
+
+            // Disable all buttons to prevent multiple clicks
+            Array.from(optionsContainer.children).forEach(button => {
+                button.removeEventListener('click', handleAnswerClick);
+                button.classList.remove('hover:bg-green-400', 'active:translate-y-0');
+            });
+            pronounceButton.disabled = true;
+            explainButton.disabled = true;
+            relatedWordButton.disabled = true; // Disable new button
+
+
+            // Show feedback
+            if (selectedAnswer === correctAnswer) {
+                score++;
+                messageBox.textContent = "Correct! Bien fait!";
+                messageBox.classList.add('show', 'correct-msg');
+                event.target.classList.add('correct'); // Apply popScale animation
+            } else {
+                messageBox.textContent = `Incorrect. The correct answer was "${correctAnswer}".`;
+                messageBox.classList.add('show', 'incorrect-msg');
+                event.target.classList.add('incorrect'); // Apply shake animation to incorrect button
+                // Highlight the correct answer
+                Array.from(optionsContainer.children).find(btn => btn.dataset.answer === correctAnswer).classList.add('correct');
+            }
+
+            // Move to the next question after a short delay
+            setTimeout(() => {
+                currentQuestionIndex++;
+                displayQuestion();
+            }, 1500); // 1.5 seconds delay
+        }
+
+        /**
+         * Ends the game and displays final score.
+         */
+        function endGame() {
+            frenchWordDisplay.textContent = "Jeu terminé!";
+            optionsContainer.innerHTML = `
+                <p class="text-xl font-semibold text-gray-700">Votre score final: ${score} sur ${MAX_QUESTIONS_PER_GAME}</p>
+                <p class="text-lg text-gray-600">${score === MAX_QUESTIONS_PER_GAME ? "Parfait! Vous êtes un expert!" : "Continuez à pratiquer!"}</p>
+            `;
+            messageBox.classList.remove('show', 'correct-msg', 'incorrect-msg');
+            explanationBox.style.display = 'none'; // Hide explanation at end of game
+            restartButton.style.display = 'block'; // Show restart button
+            currentQuestionNumSpan.textContent = MAX_QUESTIONS_PER_GAME; // Ensure question count is maxed out
+            pronounceButton.disabled = true; // Disable Gemini buttons at end of game
+            explainButton.disabled = true;
+            relatedWordButton.disabled = true; // Disable new button
+        }
+
+        /**
+         * Initializes or restarts the game.
+         */
+        function startGame() {
+            currentQuestionIndex = 0;
+            score = 0;
+            // Shuffle vocabulary and pick the first MAX_QUESTIONS_PER_GAME items
+            shuffledVocabulary = shuffleArray([...vocabulary]).slice(0, MAX_QUESTIONS_PER_GAME);
+            restartButton.style.display = 'none';
+            displayQuestion();
+        }
+
+        /**
+         * Handles pronunciation using Gemini TTS API.
+         */
+        async function handlePronounce() {
+            const wordToPronounce = frenchWordDisplay.textContent;
+            if (!wordToPronounce || wordToPronounce === "Chargement...") return;
+
+            pronounceButton.disabled = true;
+            pronounceButton.innerHTML = '<span class="loading-spinner"></span> Prononçant...';
+            explanationBox.style.display = 'none'; // Hide any current explanation/related word
+
+            try {
+                // Initialize AudioContext if not already done
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+
+                const payload = {
+                    contents: [{
+                        parts: [{ text: wordToPronounce }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: { voiceName: "Kore" } // A clear, firm voice
+                            }
+                        }
+                    },
+                    model: "gemini-2.5-flash-preview-tts"
+                };
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+                const response = await retryFetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+                const audioData = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType;
+
+                if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                    const sampleRateMatch = mimeType.match(/rate=(\d+)/);
+                    const sampleRate = sampleRateMatch ? parseInt(sampleRateMatch[1], 10) : audioContext.sampleRate; // Fallback to context sample rate
+                    const pcmData = base64ToArrayBuffer(audioData);
+                    const pcm16 = new Int16Array(pcmData);
+
+                    const wavBlob = pcmToWav(pcm16, sampleRate);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+
+                    // Create and play audio
+                    if (audioSource) { // Stop previous audio if playing
+                        audioSource.stop();
+                        audioSource.disconnect();
+                    }
+                    audioSource = audioContext.createBufferSource();
+                    const audioBuffer = await audioContext.decodeAudioData(await wavBlob.arrayBuffer());
+                    audioSource.buffer = audioBuffer;
+                    audioSource.connect(audioContext.destination);
+                    audioSource.start(0);
+
+                    audioSource.onended = () => {
+                        URL.revokeObjectURL(audioUrl); // Clean up the URL after playback
+                        pronounceButton.disabled = false;
+                        pronounceButton.innerHTML = '✨ Prononcer';
+                    };
+
+                } else {
+                    console.error("Invalid audio data received from TTS API:", result);
+                    explanationBox.style.display = 'block';
+                    explanationBox.classList.remove('explanation-msg'); // Remove explanation styling
+                    explanationBox.classList.add('incorrect-msg', 'show'); // Add error styling
+                    explanationBox.textContent = "Désolé, je ne peux pas prononcer ce mot pour le moment.";
+                }
+
+            } catch (error) {
+                console.error("Error calling TTS API:", error);
+                explanationBox.style.display = 'block';
+                explanationBox.classList.remove('explanation-msg'); // Remove explanation styling
+                explanationBox.classList.add('incorrect-msg', 'show'); // Add error styling
+                explanationBox.textContent = "Erreur de prononciation. Veuillez réessayer.";
+            } finally {
+                if (!audioSource || audioSource.onended) { // Only re-enable if not waiting for audio to finish
+                    pronounceButton.disabled = false;
+                    pronounceButton.innerHTML = '✨ Prononcer';
+                }
+            }
+        }
+
+        /**
+         * Handles explanation using Gemini Text Generation API.
+         */
+        async function handleExplain() {
+            const wordToExplain = frenchWordDisplay.textContent;
+            if (!wordToExplain || wordToExplain === "Chargement...") return;
+
+            explainButton.disabled = true;
+            explainButton.innerHTML = '<span class="loading-spinner"></span> Expliquant...';
+            explanationBox.style.display = 'none'; // Hide previous explanation
+            explanationBox.classList.remove('incorrect-msg', 'explanation-msg', 'show'); // Clear any previous error/explanation styling
+
+            try {
+                let chatHistory = [];
+                // Refined prompt: ask for English meaning and a simple example sentence in French with its English translation.
+                chatHistory.push({ role: "user", parts: [{ text: `Explain the French word "${wordToExplain}". Provide its English meaning and a very simple, short example sentence in French, followed by its English translation. Combine these into a concise response.` }] });
+
+                const payload = { contents: chatHistory };
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                const response = await retryFetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    if (text.trim().length > 0) { // Check if the response is not empty
+                        explanationBox.textContent = text;
+                        explanationBox.classList.add('explanation-msg', 'show'); // Apply explanation styling and show
+                        explanationBox.style.display = 'block';
+                    } else {
+                        console.error("Empty explanation received from Text API:", result);
+                        explanationBox.textContent = "Désolé, une explication n'a pas pu être générée pour le moment.";
+                        explanationBox.classList.add('incorrect-msg', 'show'); // Add error styling
+                        explanationBox.style.display = 'block';
+                    }
+                } else {
+                    console.error("Unexpected response structure from Text API:", result);
+                    explanationBox.textContent = "Désolé, je ne peux pas expliquer ce mot pour le moment.";
+                    explanationBox.classList.add('incorrect-msg', 'show'); // Add error styling
+                    explanationBox.style.display = 'block';
+                }
+            } catch (error) {
+                console.error("Error calling Text API:", error);
+                explanationBox.textContent = "Erreur d'explication. Veuillez réessayer.";
+                explanationBox.classList.add('incorrect-msg', 'show'); // Add error styling
+                explanationBox.style.display = 'block';
+            } finally {
+                explainButton.disabled = false;
+                explainButton.innerHTML = '✨ Expliquer';
+            }
+        }
+
+        /**
+         * Handles suggestion of a related word using Gemini Text Generation API.
+         */
+        async function handleSuggestRelatedWord() {
+            const currentFrenchWord = frenchWordDisplay.textContent;
+            if (!currentFrenchWord || currentFrenchWord === "Chargement...") return;
+
+            relatedWordButton.disabled = true;
+            relatedWordButton.innerHTML = '<span class="loading-spinner"></span> Suggestion...';
+            explanationBox.style.display = 'none'; // Hide previous content
+            explanationBox.classList.remove('incorrect-msg', 'explanation-msg', 'show'); // Clear any previous styling
+
+            try {
+                let chatHistory = [];
+                // Prompt to get one simple related French word with its translation
+                chatHistory.push({ role: "user", parts: [{ text: `Give me one simple French word that is closely related to "${currentFrenchWord}", along with its English translation. Format your response exactly as "French Word - English Translation", for example: "maison - house". Do not add any other text or explanation.` }] });
+
+                const payload = { contents: chatHistory };
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                const response = await retryFetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    if (text.trim().length > 0) {
+                        explanationBox.textContent = `Mot apparenté : ${text}`; // Prepend "Related word:"
+                        explanationBox.classList.add('explanation-msg', 'show');
+                        explanationBox.style.display = 'block';
+                    } else {
+                        console.error("Empty related word received from Text API:", result);
+                        explanationBox.textContent = "Désolé, aucun mot apparenté n'a pu être suggéré pour le moment.";
+                        explanationBox.classList.add('incorrect-msg', 'show');
+                        explanationBox.style.display = 'block';
+                    }
+                } else {
+                    console.error("Unexpected response structure from Text API for related word:", result);
+                    explanationBox.textContent = "Désolé, je ne peux pas suggérer de mot apparenté pour le moment.";
+                    explanationBox.classList.add('incorrect-msg', 'show');
+                    explanationBox.style.display = 'block';
+                }
+            } catch (error) {
+                console.error("Error calling Related Word API:", error);
+                explanationBox.textContent = "Erreur de suggestion. Veuillez réessayer.";
+                explanationBox.classList.add('incorrect-msg', 'show');
+                explanationBox.style.display = 'block';
+            } finally {
+                relatedWordButton.disabled = false;
+                relatedWordButton.innerHTML = '✨ Mot apparenté';
+            }
+        }
+
+
+        // Event listeners for the new Gemini features
+        pronounceButton.addEventListener('click', handlePronounce);
+        explainButton.addEventListener('click', handleExplain);
+        relatedWordButton.addEventListener('click', handleSuggestRelatedWord); // New event listener
+        // Event listener for the restart button
+        restartButton.addEventListener('click', startGame);
+
+        // Start the game when the window loads
+        window.onload = startGame;
+    </script>
+</body>
+</html>
